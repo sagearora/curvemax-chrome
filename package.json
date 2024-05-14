@@ -1,0 +1,15 @@
+{
+  "name": "curvemax",
+  "version": "1.0.0",
+  "description": "Chrome extension that enables access to Curve Hero Apis.",
+  "main": "index.js",
+  "repository": "git@github.com-sagearora:sagearora/curvemax-chrome.git",
+  "author": "Saj Arora <saj.arora24@gmail.com>",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "archiver": "^6.0.1"
+  },
+  "scripts": {
+    "build": "node build.js"
+  }
+}

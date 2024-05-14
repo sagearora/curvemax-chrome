@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "FlossPass",
+  "version": "1.2",
+  "description": "Curve Hero Connector to FlossPass",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "declarativeNetRequest",
+    "cookies",
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:*/*",
+        "*://*.flosspass.com/*"
+      ],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+  },
+  "host_permissions": [
+    "*://*.curvehero.com/*",
+    "*://*.curvegro.com/*",
+    "*://*.flosspass.com/*",
+    "*://*.herokuapp.com/*",
+    "http://localhost:*/*"
+  ]
+}

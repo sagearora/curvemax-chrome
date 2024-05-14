@@ -22,6 +22,7 @@ chrome.action.onClicked.addListener(() => {
 });
 
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+    console.log(request, sender, sendResponse)
     switch (request.type) {
         case 'set_subdomain':
             if (subdomain === request.value) {
@@ -35,6 +36,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             break;
         case 'login':
             if (!subdomain) {
+                console.log('subdomain not set')
                 return;
             }
             // cause the current tab to change to curvegro.
@@ -44,7 +46,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 url: `https://${subdomain}.curvegro.com`
             })
             login_tab_id = tab.id
-            login_tab_origin = request.origin
+            login_tab_origin = request.redirect_url || request.origin
             break;
     }
 });
