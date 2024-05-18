@@ -9,13 +9,16 @@
   "permissions": [
     "declarativeNetRequest",
     "cookies",
-    "storage"
+    "storage",
+    "tabs",
+    "notifications"
   ],
   "content_scripts": [
     {
       "matches": [
         "http://localhost:*/*",
-        "*://*.flosspass.com/*"
+        "*://*.flosspass.com/*",
+        "*://*.curvehero.com/*"
       ],
       "js": ["content.js"]
     }

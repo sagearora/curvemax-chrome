@@ -19,3 +19,12 @@ chrome.storage.local.get('subdomain', function (data) {
     installed_proof.className = `curvemax-extension v-${Version} domain-${subdomain}`
     document.body.appendChild(installed_proof);
 })
+
+chrome.storage.sync.get('authCustomToken', (data) => {
+  const customToken = data.authCustomToken;
+  if (customToken) {
+    console.log('token found', customToken)
+  } else {
+    console.log('No custom token found in storage');
+  }
+});
