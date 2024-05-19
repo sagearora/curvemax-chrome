@@ -10,7 +10,8 @@
   "permissions": [
     "declarativeNetRequest",
     "cookies",
-    "storage"
+    "storage",
+    "tabs"
   ],
   "content_scripts": [
     {

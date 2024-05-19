@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>User Info</title>
     <style>
@@ -7,16 +8,31 @@
             font-family: Arial, sans-serif;
             padding: 10px;
         }
+
         .user-info {
             margin-bottom: 10px;
         }
+
         .user-info label {
+            font-weight: bold;
+        }
+        .toggle-container {
+            margin-bottom: 10px;
+        }
+        .toggle-label {
             font-weight: bold;
         }
     </style>
 </head>
+
 <body>
-    <h1>User Info</h1>
+    <h1>FlossPass</h1>
+    <div class="toggle-container">
+        <label class="toggle-label">
+            <input type="checkbox" id="toggleRingCentral">
+            Enable RingCentral Integration
+        </label>
+    </div>
     <div class="user-info">
         <label>Name:</label>
         <span id="name"></span>
@@ -43,4 +59,5 @@
     </div>
     <script src="popup.js"></script>
 </body>
+
 </html>

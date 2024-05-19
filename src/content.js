@@ -5,21 +5,7 @@ var registered = false
 const ServiceName = 'FlossPass'
 let matchedContacts = {}
 
-window.addEventListener('message', function (event) {
-    const { data } = event
-
-    if (!data) {
-        return;
-    }
-
-    if (data.curvemax_key === Key) {
-        chrome.runtime.sendMessage({
-            ...data,
-            origin: event.origin
-        })
-        return;
-    }
-
+const enableRcServices = (data) => {
     switch (data.type) {
         case 'rc-login-status-notify':
             if (!registered) {
@@ -81,9 +67,9 @@ window.addEventListener('message', function (event) {
         default:
             break;
     }
-});
+}
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+const runtimeListener = (message, sender, sendResponse) => {
     switch (message.type) {
         case 'search_contacts_results': {
             document.querySelector("#rc-widget-adapter-frame").contentWindow.postMessage({
@@ -134,7 +120,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             break;
         }
     }
-});
+}
+
+chrome.storage.local.get('ringCentralEnabled', (data) => {
+    console.log('Setting up ringcentral', data.ringCentralEnabled)
+    window.addEventListener('message', function (event) {
+        const { data } = event
+
+        if (!data) {
+            return;
+        }
+
+        if (data.curvemax_key === Key) {
+            chrome.runtime.sendMessage({
+                ...data,
+                origin: event.origin
+            })
+            return;
+        }
+        if (data.ringCentralEnabled) {
+            enableRcServices();
+        }
+    });
+
+    if (data.ringCentralEnabled) {
+        console.log('inject RingCentral extension');
+        const script = document.createElement('script');
+        var clientId = 'ev8zb9NmHdbbtmQQ60pCMt';
+        // var appServer = "https://platform.devtest.ringcentral.com";
+        var appServer = "https://platform.ringcentral.com";
+        script.src = chrome.runtime.getURL(`lib/adapter.js?clientId=${clientId}&appServer=${appServer}`);  // Local path to the downloaded script
+        script.onload = () => {
+            console.log('RingCentral adapter loaded.');
+        };
+        (document.head || document.documentElement).appendChild(script);
+        chrome.runtime.onMessage.addListener(runtimeListener);
+    }
+})
 
 chrome.storage.local.get('subdomain', function (data) {
     subdomain = data.subdomain || ''
@@ -143,15 +165,6 @@ chrome.storage.local.get('subdomain', function (data) {
     document.body.appendChild(installed_proof);
 })
 
-const script = document.createElement('script');
-var clientId = 'ev8zb9NmHdbbtmQQ60pCMt'
-// var appServer = "https://platform.devtest.ringcentral.com"
-var appServer = "https://platform.ringcentral.com"
-script.src = chrome.runtime.getURL(`lib/adapter.js?clientId=${clientId}&appServer=${appServer}`);  // Local path to the downloaded script
-script.onload = () => {
-    console.log('RingCentral adapter loaded.');
-};
-(document.head || document.documentElement).appendChild(script);
 
 
 
