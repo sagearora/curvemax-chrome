@@ -16,9 +16,14 @@
     {
       "matches": [
         "http://localhost:*/*",
-        "*://*.flosspass.com/*"
+        "*://*.flosspass.com/*",
+        "*://*.curvehero.com/*"
       ],
-      "js": ["content.js"]
+      "js": [
+        "content.js"
+      ],
+      "type": "module",
+      "run_at": "document_end"
     }
   ],
   "action": {
@@ -30,5 +35,18 @@
     "*://*.flosspass.com/*",
     "*://*.herokuapp.com/*",
     "http://localhost:*/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "lib/adapter.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
   ]
 }

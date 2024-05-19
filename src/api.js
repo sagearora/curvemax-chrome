@@ -36,4 +36,22 @@ export class CurvePMSApi {
         })
         return this.parseJson(res)
     }
+
+    async searchContacts(query) {
+        const res = await proxyFetch(`https://${this.base_url}/cheetah/contacts/search?filter=${query}&statuses=&fields=clientNumber%2Caddress%2Cphones%2Cstatus%2Cnames%2Cnickname%2Csubscriber%2Cdob%2Cthumbnail%2Ccategory&start=0`, {
+            method: 'GET',
+        })
+        const data = await this.parseJson(res)
+        if (!data) {
+            return []
+        }
+        return (data.items || []).map(item => ({
+            id: this.normalizePatientId(item.id),
+            first_name: item.first_name,
+            last_name: item.last_name,
+            dob: item.dob,
+            phone: item.cell_phone_number,
+            email: item.email,
+        }))
+    }
 }

@@ -1,6 +1,7 @@
 import { CurvePMSApi } from './api.js';
 import { updateDynamicRules } from './rules.js';
 import { setIcon } from './utils.js';
+import './lib/libphonenumber.js'
 
 const app_url = 'https://app.flosspass.com'
 const signin_url = (subdomain) => `https://${subdomain}.curvehero.com`
@@ -9,6 +10,7 @@ let curveApi = null;
 let user = null
 const CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes
 let intervalId = null;
+
 
 
 async function initCurveApi() {
@@ -120,6 +122,62 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             break;
         case 'login':
             signinToCurve()
+            break;
+        case 'search_contacts':
+            if (curveApi) {
+                try {
+                    let _query = request.query
+                    const results = await curveApi.searchContacts(_query);
+                    chrome.tabs.sendMessage(sender.tab.id, {
+                        type: `search_contacts_results`,
+                        requestId: request.requestId,
+                        results: results.map(result => ({
+                            ...result,
+                            phone: result.phone ? libphonenumber.parsePhoneNumber(result.phone, 'US').format('E.164') : '',
+                        }))
+                    });
+                } catch (error) {
+                    console.error('Failed to search contacts:', error);
+                    chrome.tabs.sendMessage(sender.tab.id, {
+                        type: `${request.type}_results`,
+                        requestId: request.requestId,
+                        results: []
+                    });
+                }
+            }
+            break;
+        case 'match_contacts':
+            if (curveApi) {
+                try {
+                    const all = await Promise.all(
+                        request.query
+                            .map(number => libphonenumber.parsePhoneNumber(number, 'US'))
+                            .map(async phone => {
+                                if (phone) {
+                                    const results = await curveApi.searchContacts(phone.nationalNumber);
+                                    return results
+                                } else {
+                                    return []
+                                }
+                            }))
+                    const results = all.flat().map(result => ({
+                        ...result,
+                        phone: result.phone ? libphonenumber.parsePhoneNumber(result.phone, 'US').format('E.164') : '',
+                    }))
+                    chrome.tabs.sendMessage(sender.tab.id, {
+                        type: `match_contacts_results`,
+                        requestId: request.requestId,
+                        results,
+                    });
+                } catch (error) {
+                    console.error('Failed to search contacts:', error);
+                    chrome.tabs.sendMessage(sender.tab.id, {
+                        type: `${request.type}_results`,
+                        requestId: request.requestId,
+                        results: []
+                    });
+                }
+            }
             break;
     }
 });
