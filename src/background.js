@@ -1,24 +1,108 @@
-const allResourceTypes = Object.values(chrome.declarativeNetRequest.ResourceType);
+import { CurvePMSApi } from './api.js';
+import { updateDynamicRules } from './rules.js';
+import { setIcon } from './utils.js';
 
-const app_url = 'https://curve-max.web.app'
+const app_url = 'https://app.flosspass.com'
+const signin_url = (subdomain) => `https://${subdomain}.curvehero.com`
 let subdomain = ''
-let login_tab_id = ''
-let login_tab_origin = ''
+let curveApi = null;
+let user = null
+const CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes
+let intervalId = null;
 
-chrome.storage.local.get('subdomain').then((data) => {
+
+async function initCurveApi() {
+    if (subdomain) {
+        curveApi = new CurvePMSApi(`${subdomain}.curvehero.com`);
+        user = await curveApi.getUserInfo();
+        setIcon(!!user)
+        if (user) {
+            chrome.storage.local.set({ userInfo: user });
+            startInterval();
+        } else {
+            clearInterval();
+        }
+        return !!user
+    }
+    return false
+}
+
+async function checkUserSession() {
+    if (curveApi) {
+        const user = await curveApi.getUserInfo();
+        setIcon(!!user);
+        if (!user) {
+            clearExistingInterval()
+        }
+    }
+}
+
+function startInterval() {
+    if (!intervalId) {
+        console.log('start interval')
+        intervalId = setInterval(checkUserSession, CHECK_INTERVAL);
+    }
+}
+
+function clearExistingInterval() {
+    if (intervalId) {
+        console.log('clear interval')
+        clearInterval(intervalId);
+        chrome.storage.local.remove('userInfo');
+        intervalId = null;
+    }
+}
+
+
+chrome.storage.local.get('subdomain').then(async (data) => {
     subdomain = data.subdomain || ''
     console.log('subdomain', subdomain)
     if (subdomain) {
-        updateDynamicRules()
+        await updateDynamicRules(subdomain)
+        initCurveApi()
     }
 })
 
+const signinListener = async (
+    tabId,
+    changeInfo,
+    tab
+) => {
+    if (tab.status === 'complete') {
+        if (!tab.url) {
+            return;
+        }
+        if (tab.url.endsWith('#/')) {
+            console.log('close this tab')
+            if (tab.id) {
+                await chrome.tabs.remove(tab.id);
+            }
+            chrome.tabs.onUpdated.removeListener(signinListener);
+        }
+    }
+}
 
-chrome.action.setPopup({ popup: "" });
-chrome.action.onClicked.addListener(() => {
-    chrome.tabs.update({
-        url: app_url
-    });
+const signinToCurve = () => {
+    if (!subdomain) {
+        alert('Subdomain not set...')
+        console.log('subdomain not set')
+        return;
+    }
+    chrome.tabs.onUpdated.removeListener(signinListener)
+    chrome.tabs.create({
+        url: signin_url(subdomain),
+        active: true,
+    })
+        .then(() => {
+            chrome.tabs.onUpdated.addListener(signinListener);
+        });
+}
+
+chrome.action.onClicked.addListener(async () => {
+    if (!await initCurveApi()) {
+        signinToCurve()
+        return
+    }
 });
 
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
@@ -35,100 +119,17 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             subdomain = request.value
             break;
         case 'login':
-            if (!subdomain) {
-                console.log('subdomain not set')
-                return;
-            }
-            // cause the current tab to change to curvegro.
-            // once logged in, switch back.
-            console.log('login to curvehero')
-            const tab = await chrome.tabs.update({
-                url: `https://${subdomain}.curvegro.com`
-            })
-            login_tab_id = tab.id
-            login_tab_origin = request.redirect_url || request.origin
+            signinToCurve()
             break;
     }
 });
 
-async function getCookiesForDomain(domain) {
-    return new Promise(res => {
-        chrome.cookies.getAll({ domain: domain }, function (cookies) {
-            res(cookies)
-        });
-    })
-}
-
-const updateDynamicRules = async () => {
-    if (!subdomain) {
-        console.log('no subdomain set')
-        return false;
-    }
-    console.log('fetch cookies and update')
-    const gro_cookies = await getCookiesForDomain(`${subdomain}.curvegro.com`)
-    const hero_cookies = await getCookiesForDomain(`${subdomain}.curvehero.com`)
-    if (gro_cookies.length === 0 || hero_cookies.length === 0) {
-        return false;
-    }
-    const rules = [
-        {
-            id: 1,
-            priority: 1,
-            action: {
-                type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
-                requestHeaders: [
-                    {
-                        operation: chrome.declarativeNetRequest.HeaderOperation.SET,
-                        header: 'Cookie',
-                        value: `${hero_cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ')}; ${gro_cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ')};`,
-                    },
-                ]
-            },
-            condition: {
-                urlFilter: 'guarded-peak',
-                resourceTypes: allResourceTypes,
-            }
-        },
-        {
-            id: 2,
-            priority: 1,
-            action: {
-                type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
-                requestHeaders: [
-                    {
-                        operation: chrome.declarativeNetRequest.HeaderOperation.SET,
-                        header: 'X-Xsrf-Token',
-                        value: gro_cookies.find((cookie) => cookie.name === 'XSRF-TOKEN')?.value,
-                    },
-                ]
-            },
-            condition: {
-                urlFilter: 'guarded-peak',
-                resourceTypes: allResourceTypes,
-            }
-        }
-    ];
-
-    await chrome.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: rules.map((rule) => rule.id), // remove existing rules
-        addRules: rules
-    });
-    return true
-}
 
 chrome.tabs.onUpdated.addListener(async function (tabId, changes, tab) {
     if (!tab.url || !subdomain) return;
-    if (tab.url.startsWith(`https://${subdomain}.curvegro.com`)) {
+    if (tab.url.startsWith(`https://${subdomain}.curvehero.com`)) {
         console.log('logged in...')
-        await updateDynamicRules()
-        if (tabId === login_tab_id) {
-            console.log('login complete')
-            chrome.tabs.update({
-                url: login_tab_origin || app_url,
-            })
-            login_tab_id = ''
-            login_tab_origin = ''
-        }
+        await updateDynamicRules(subdomain)
+        await initCurveApi()
     }
 });
-

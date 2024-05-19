@@ -4,7 +4,8 @@
   "version": "1.2",
   "description": "Curve Hero Connector to FlossPass",
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "permissions": [
     "declarativeNetRequest",
@@ -21,6 +22,7 @@
     }
   ],
   "action": {
+    "default_popup": "popup.html"
   },
   "host_permissions": [
     "*://*.curvehero.com/*",
